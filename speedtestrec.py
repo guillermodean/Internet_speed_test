@@ -2,23 +2,10 @@ import pandas as pd
 import speedtest as st
 from datetime import datetime
 from sqlalchemy import create_engine
+import pymysql
 
-engine= create_engine('sqlite:///internet_speed.sqlite',echo=False)
-
-#TODO change connection to mysql
-
-"""def get_connection():
-    try:
-        db = mysql.connect(
-            host="localhost",
-            user="root",
-            password="Guillermo11",
-            db="internet_speed"
-        )
-    except ValueError:
-        print('error de conexión')
-
-    return db"""
+engine= create_engine('mysql+pymysql://root:Guillermo11@127.0.0.1/internet_speed', pool_recycle=3600)
+dbConnection=engine.connect()
 
 def get_new_speeds():
     speed_test=st.Speedtest()
@@ -38,22 +25,14 @@ def get_new_speeds():
     return (ping,download_mbs,upload_mbs)
 
 def update_sql(internetspeeds,db):
-    date_today=datetime.today().strftime("%d%m%Y")
-    results_df=pd.DataFrame([[internet_speeds[0],internet_speeds[1],internet_speeds[2]]],columns=["ping(ms)","Download (Mbs)","upload (Mbs)"],index=[date_today])
-    try:
-        sqlimport=pd.read_sql(sql='Select * FROM speedtests',con=engine)
-        print(sqlimport)
-        results_df.to_sql(name='speedtests', con=engine, if_exists='append')
-        resultadosql = engine.execute("SELECT * FROM speedtests").fetchall()
-
-    except:
-        results_df.to_sql(name='speedtests', con=engine)
-        resultadosql = engine.execute("SELECT * FROM speedtests").fetchall()
-
-
-    return resultadosql
+    date_today=datetime.today().strftime("%Y-%m-%d")
+    results_df=pd.DataFrame([[internet_speeds[0],internet_speeds[1],internet_speeds[2],date_today]],columns=["ping(ms)","Download (Mbs)","upload (Mbs)","DATE"])
+    #subir la tabla omitiendo el indice que es autonumerico de mysql y añadiendo registros nuevos.
+    results_df.to_sql(name='speedtests', con=engine, if_exists='append',index=False)
+    return results_df
 
 internet_speeds=get_new_speeds()
-#db=get_connection()
 update_sql(internet_speeds,engine)
 
+frame=pd.read_sql("SELECT * from internet_speed.speedtests", dbConnection);
+print(frame.head())
